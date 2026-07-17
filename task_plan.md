@@ -49,5 +49,5 @@
 ## 結合テスト・仕上げ
 
 - [x] タスク26: ヘッドレス起動確認（`npm run build && npm run start`後、主要ページ・APIルートへの疎通確認）
-- [ ] タスク27（親AI担当）: Vercelへのデプロイ設定（GitHub連携、環境変数 `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` / `APP_PASSWORD` / `ANTHROPIC_API_KEY` の設定）
+- [x] タスク27（親AI担当）: Vercelへのデプロイ設定（GitHub連携、環境変数 `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` / `APP_PASSWORD` / `ANTHROPIC_API_KEY` の設定）
 - [ ] タスク28（人間による確認待ち）: 公開URLへの実アクセスで、ログイン→本の登録→一覧表示という一連のデータを伴う操作を試してもらう

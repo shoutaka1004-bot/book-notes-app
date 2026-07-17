@@ -193,3 +193,9 @@
 - 親AI自身の独立確認: `git status`が変更無しでクリーンであること、3000番ポートにLISTENING状態のプロセスが残っていない（子エージェントがPID指定で正しく終了させたこと）を独立に再確認。子エージェントの報告内容と齟齬なし。
 - 気になった点: 特になし。本番ビルド特有の不具合は見つからなかった。
 
+## タスク27（親AI担当）: Vercelへのデプロイ設定
+- GitHubリポジトリ（`https://github.com/shoutaka1004-bot/book-notes-app.git`、人間が新規作成）に対し、親AIが`git remote add origin`＋`git push -u origin task/book-notes-app`でworktreeの内容をpush（`master`はまだ未マージのため、`task/book-notes-app`ブランチをそのままpush。リポジトリが空だったため、このブランチがGitHub側の既定ブランチとして自動設定されたことを`git ls-remote --symref origin HEAD`で確認）。
+- Vercel側のプロジェクト作成・環境変数（`NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY`/`APP_PASSWORD`/`ANTHROPIC_API_KEY`）の入力・デプロイ実行は人間が直接Vercelのダッシュボードで実施（実際の鍵・パスワードの値は親AIには一切共有していない）。`AUTH_COOKIE_SECRET`のみ、親AIが`crypto.randomBytes(32)`でランダムな値を生成し提供。
+- デプロイ後、公開URL（`https://book-notes-app.vercel.app/`）に対し、親AI自身が外部から`curl`で未認証時の疎通を独立確認: `/login`→200、`/`→307で`/login`へリダイレクト、`/api/books`→401（日本語エラーメッセージ）。認証が必要なデータフロー確認（ログイン→登録等）はパスワードを親AIが持たないため、タスク28で人間が直接行う。
+- 気になった点: 特になし。
+
