@@ -54,6 +54,25 @@ export interface BookSearchResult {
   isbn: string | null;
 }
 
+/**
+ * openBD（ISBN指定の書誌情報API）から得られる表紙画像・出版情報。
+ * `lib/openbd.ts` の取得結果として使う。該当ISBNの書誌情報が存在しない場合は
+ * `getBookInfoByIsbn`自体が`null`を返す（このインターフェースの各フィールドがnullになる
+ * わけではない）。openBD側にフィールドが空の場合は`null`に正規化している。
+ *
+ * `publishedDate`はopenBDの`summary.pubdate`をそのまま返す。書誌によって桁数が異なり
+ * （`YYYY`/`YYYYMM`/`YYYYMMDD`いずれもありうることを実測で確認済み）、日付型への変換は
+ * ここでは行わないため、表示・加工は呼び出し側の責務とする。
+ */
+export interface OpenBdBookInfo {
+  isbn: string;
+  title: string | null;
+  author: string | null;
+  publisher: string | null;
+  coverUrl: string | null;
+  publishedDate: string | null;
+}
+
 export interface BookLink {
   id: string;
   from_book_id: string;
