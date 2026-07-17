@@ -3,16 +3,18 @@ import { AUTH_COOKIE_NAME, verifySessionToken } from "./lib/auth";
 
 /**
  * 認証チェックの対象外にするパス（完全一致）。
- * `/login`: ログイン画面自体。`/api/login`: ログインAPI（未実装だがmatcherから除外しておく）。
+ * `/login`: ログイン画面自体。`/api/login`: ログインAPI。
+ * `/api/logout`: ログアウトAPI。Cookieが期限切れ・破損している状態でもログアウト
+ * （状態のリセット）を試みられるよう、常に到達可能にしておく（失敗させる実害が無い操作のため）。
  */
-const PUBLIC_PATHS = new Set(["/login", "/api/login"]);
+const PUBLIC_PATHS = new Set(["/login", "/api/login", "/api/logout"]);
 
 /**
  * 未ログイン状態でアクセスされたリクエストをガードするproxy（旧middleware。
  * Next.js 16でファイル規約が`middleware`から`proxy`に改称され、既定の実行環境も
  * Node.js runtimeになった。これにより`lib/auth.ts`が使う`node:crypto`が利用できる）。
  *
- * - `/login` と `/api/login` は認証チェック対象外（常に通過）
+ * - `/login` と `/api/login`、`/api/logout` は認証チェック対象外（常に通過）
  * - それ以外の `/api/` 配下のパスは、未認証の場合 `/login` へのリダイレクトではなく
  *   JSON形式の401エラーを返す。fetchで呼ばれる想定のAPIルートに対してHTMLのリダイレクト先を
  *   返すと、fetchがデフォルトでリダイレクトを追跡してしまい、JSONを期待するクライアント側が
