@@ -102,6 +102,18 @@ export default function Home() {
           >
             新しく記録する
           </Link>
+          <Link
+            href="/graph"
+            className="flex h-11 min-h-11 items-center justify-center rounded-lg border border-zinc-300 px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            相関図
+          </Link>
+          <Link
+            href="/recommend"
+            className="flex h-11 min-h-11 items-center justify-center rounded-lg border border-zinc-300 px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            おすすめ本
+          </Link>
           <button
             type="button"
             onClick={handleLogout}
