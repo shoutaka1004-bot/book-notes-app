@@ -14,7 +14,9 @@ const idSchema = z.string().uuid("idの形式が不正です");
 /**
  * `books`の更新用スキーマ。`app/api/books/route.ts`の`createBookSchema`を
  * `.partial()`して流用し、バリデーションルールの重複を避ける。
- * ボディが空オブジェクトでも許容する（更新対象フィールドが0件でもエラーにしない）。
+ * このスキーマ自体は空オブジェクトも構文上は許容するが、ボディが空オブジェクト
+ * （更新対象フィールドが0件）の場合は、このスキーマ通過後のPUTハンドラ内の
+ * チェック（下記）で明示的に400として弾く。
  */
 const updateBookSchema = createBookSchema.partial();
 
