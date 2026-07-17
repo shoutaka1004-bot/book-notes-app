@@ -96,6 +96,24 @@ export default function RecommendPage() {
           </button>
         </div>
 
+        {isLoading && (
+          <ul
+            aria-hidden="true"
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          >
+            {Array.from({ length: 3 }).map((_, index) => (
+              <li
+                key={`skeleton-${index}`}
+                className="flex min-h-[44px] flex-col gap-2 rounded-xl bg-white p-4 shadow-sm dark:bg-zinc-900"
+              >
+                <span className="h-4 w-3/4 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
+                <span className="h-3 w-1/2 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
+                <span className="h-4 w-full animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
+              </li>
+            ))}
+          </ul>
+        )}
+
         {error && (
           <p role="alert" className="text-center text-sm text-red-600 dark:text-red-400">
             {error}
