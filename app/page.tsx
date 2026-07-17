@@ -158,17 +158,29 @@ export default function Home() {
               <li key={book.id}>
                 <Link
                   href={`/books/${book.id}`}
-                  className="flex min-h-[44px] flex-col gap-2 rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+                  className="flex min-h-[44px] flex-row gap-3 rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800"
                 >
-                  <span className="font-medium text-zinc-900 dark:text-zinc-50">
-                    {book.title}
-                  </span>
-                  <span className="text-sm text-amber-500 dark:text-amber-400">
-                    {formatRating(book.rating)}
-                  </span>
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {formatFinishedDate(book.finished_date)}
-                  </span>
+                  {book.cover_url && (
+                    // 素の<img>を意図的に使用（next/imageは外部ドメイン許可設定が必要になるため、
+                    // BRIEF記載の方針通りこちらを採用。app/books/[id]/page.tsxと同じ方針）。
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={book.cover_url}
+                      alt={`${book.title}の表紙`}
+                      className="h-16 w-12 flex-shrink-0 rounded object-cover"
+                    />
+                  )}
+                  <div className="flex flex-col gap-2">
+                    <span className="font-medium text-zinc-900 dark:text-zinc-50">
+                      {book.title}
+                    </span>
+                    <span className="text-sm text-amber-500 dark:text-amber-400">
+                      {formatRating(book.rating)}
+                    </span>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                      {formatFinishedDate(book.finished_date)}
+                    </span>
+                  </div>
                 </Link>
               </li>
             ))}
