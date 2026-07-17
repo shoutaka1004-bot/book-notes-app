@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
  * ネットワークエラー・想定外のレスポンス形式など、APIが返すエラーメッセージを
  * 読み取れなかった場合に表示する汎用の日本語エラー文言。
  */
-const GENERIC_ERROR_MESSAGE = "通信に失敗しました。時間をおって再度お試しください。";
+const GENERIC_ERROR_MESSAGE = "通信に失敗しました。時間をおいて再度お試しください。";
 
 /**
  * ログイン画面。単一パスワード方式（`/api/login`）でCookieを発行してもらい、
