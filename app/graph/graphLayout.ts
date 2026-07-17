@@ -18,11 +18,19 @@ export interface GraphNodeInput {
  * 相関図に渡すエッジ（リンク）1件分の入力。`book_links`の`from_book_id`/`to_book_id`を
  * `source`/`target`に読み替えるのは呼び出し側（`page.tsx`）の責務とする
  * （`layout.ts`自体はd3-force/グラフ描画の語彙に閉じ、DBのカラム名に依存させないため）。
+ *
+ * `strength`（関連度、1〜3）は座標計算には一切使わず、`page.tsx`が線の太さ・色を
+ * 決めるためだけにそのまま`PositionedGraphLink`まで通過させる値（タスク37）。省略時は
+ * `DEFAULT_LINK_STRENGTH`（DB側のデフォルト値と同じ「普通」）を補う。
  */
 export interface GraphLinkInput {
   source: string;
   target: string;
+  strength?: number;
 }
+
+/** `strength`省略時に補うデフォルト値。`book_links.strength`のDB既定値（普通）と合わせる。 */
+const DEFAULT_LINK_STRENGTH = 2;
 
 /** レイアウト計算後の、座標が確定したノード。 */
 export interface PositionedGraphNode {
@@ -40,6 +48,8 @@ export interface PositionedGraphLink {
   y1: number;
   x2: number;
   y2: number;
+  /** 関連度（1〜3）。入力の`GraphLinkInput.strength`をそのまま引き継ぐ（省略時はデフォルト値）。 */
+  strength: number;
 }
 
 export interface GraphLayout {
@@ -67,6 +77,14 @@ const CHARGE_STRENGTH = -220;
 const COLLIDE_RADIUS = 30;
 
 type SimNode = SimulationNodeDatum & GraphNodeInput;
+
+/**
+ * d3-forceに渡す内部用のリンク型。`strength`は追加の独自フィールドであり、
+ * forceLinkは`source`/`target`しか参照しないため、座標計算には影響しない
+ * （forceLinkの`.strength()`メソッド＝リンク力全体の強さの調整とは無関係。
+ * 混同しないよう、こちらは単なるデータの持ち回り用のプロパティ名）。
+ */
+type SimLink = SimulationLinkDatum<SimNode> & { strength: number };
 
 /**
  * 本（ノード）とリンク（エッジ）の入力から、d3-forceの力学シミュレーションを使って
@@ -101,18 +119,19 @@ export function computeGraphLayout(
   const validNodeIds = new Set(nodesInput.map((node) => node.id));
   // d3-forceのforceLinkは、参照先のidがノード集合に存在しないとエラーを投げるため、
   // データ不整合（存在しない本を指すリンク）を事前に除外してから渡す。
-  const simLinks: SimulationLinkDatum<SimNode>[] = linksInput
+  const simLinks: SimLink[] = linksInput
     .filter((link) => validNodeIds.has(link.source) && validNodeIds.has(link.target))
     .map((link) => ({
       source: link.source,
       target: link.target,
+      strength: link.strength ?? DEFAULT_LINK_STRENGTH,
     }));
 
   if (nodeCount > 0) {
     const simulation = forceSimulation(simNodes)
       .force(
         "link",
-        forceLink<SimNode, SimulationLinkDatum<SimNode>>(simLinks)
+        forceLink<SimNode, SimLink>(simLinks)
           .id((node) => node.id)
           .distance(LINK_DISTANCE)
       )
@@ -159,6 +178,7 @@ export function computeGraphLayout(
         y1: sourceNode.y,
         x2: targetNode.x,
         y2: targetNode.y,
+        strength: link.strength,
       });
       return acc;
     },

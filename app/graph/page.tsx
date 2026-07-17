@@ -14,8 +14,21 @@ const GENERIC_LOAD_ERROR_MESSAGE =
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
 
-/** ノード円の半径。タップ領域確保のため、装飾目的より大きめに取っている（第4章再発防止チェック参照）。 */
+/** ノード円の半径。タップ領域確保のため、装飾目的より大きめに取っている（第4章再発防止チェック参照)。 */
 const NODE_RADIUS = 20;
+
+/**
+ * リンクの関連度（strength、1〜3）ごとの線の見た目（タスク37、BRIEF第4-8節）。
+ * `2`（普通）は既存の見た目（strokeWidth 1.5・stroke-zinc-300/700）をそのまま踏襲する。
+ * 既存データの大半はDBのデフォルト値である2のため、この変更で見た目が急変しないようにする狙い。
+ * 想定外の値（DB/APIのバリデーションが機能していない場合）は`DEFAULT_LINK_STYLE`にフォールバックする。
+ */
+const LINK_STYLE_BY_STRENGTH: Record<number, { strokeWidth: number; className: string }> = {
+  1: { strokeWidth: 1, className: "stroke-zinc-200 dark:stroke-zinc-800" },
+  2: { strokeWidth: 1.5, className: "stroke-zinc-300 dark:stroke-zinc-700" },
+  3: { strokeWidth: 3, className: "stroke-zinc-500 dark:stroke-zinc-400" },
+};
+const DEFAULT_LINK_STYLE = LINK_STYLE_BY_STRENGTH[2];
 
 /**
  * 本のつながりの相関図画面（タスク24）。
@@ -87,6 +100,7 @@ export default function GraphPage() {
     const linkInputs: GraphLinkInput[] = links.map((link) => ({
       source: link.from_book_id,
       target: link.to_book_id,
+      strength: link.strength,
     }));
     return computeGraphLayout(nodeInputs, linkInputs);
   }, [books, links]);
@@ -174,17 +188,20 @@ export default function GraphPage() {
                 })}
               </defs>
 
-              {layout.links.map((link) => (
-                <line
-                  key={`${link.source}-${link.target}`}
-                  x1={link.x1}
-                  y1={link.y1}
-                  x2={link.x2}
-                  y2={link.y2}
-                  className="stroke-zinc-300 dark:stroke-zinc-700"
-                  strokeWidth={1.5}
-                />
-              ))}
+              {layout.links.map((link) => {
+                const linkStyle = LINK_STYLE_BY_STRENGTH[link.strength] ?? DEFAULT_LINK_STYLE;
+                return (
+                  <line
+                    key={`${link.source}-${link.target}`}
+                    x1={link.x1}
+                    y1={link.y1}
+                    x2={link.x2}
+                    y2={link.y2}
+                    className={linkStyle.className}
+                    strokeWidth={linkStyle.strokeWidth}
+                  />
+                );
+              })}
 
               {layout.nodes.map((node) => {
                 const coverUrl = booksById.get(node.id)?.cover_url;

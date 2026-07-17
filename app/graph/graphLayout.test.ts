@@ -106,4 +106,50 @@ describe("computeGraphLayout", () => {
     expect(layout.links).toHaveLength(1);
     expect(layout.links[0]).toMatchObject({ source: "a", target: "b" });
   });
+
+  it("passes each link's strength through to the output unchanged, and defaults to 2 (normal) when omitted", () => {
+    const nodes = [
+      { id: "a", title: "本A" },
+      { id: "b", title: "本B" },
+      { id: "c", title: "本C" },
+      { id: "d", title: "本D" },
+    ];
+    const links = [
+      { source: "a", target: "b", strength: 1 },
+      { source: "b", target: "c", strength: 3 },
+      { source: "c", target: "d" }, // strength省略 → デフォルト(2)になるはず
+    ];
+
+    const layout = computeGraphLayout(nodes, links);
+    const byPair = new Map(layout.links.map((l) => [`${l.source}-${l.target}`, l]));
+
+    expect(byPair.get("a-b")?.strength).toBe(1);
+    expect(byPair.get("b-c")?.strength).toBe(3);
+    expect(byPair.get("c-d")?.strength).toBe(2);
+  });
+
+  it("does not let strength influence the computed layout (coordinates are identical regardless of strength values)", () => {
+    // トポロジー（ノード・リンクの接続関係）は同一で、strengthだけを変えた2通りの入力を用意する。
+    // strengthはpage.tsx側の見た目（線の太さ・色）のためだけのデータであり、d3-forceの
+    // 座標計算（forceLinkのdistance等）には一切使われないはず、という仕様を確認する。
+    const nodes = [
+      { id: "a", title: "本A" },
+      { id: "b", title: "本B" },
+      { id: "c", title: "本C" },
+    ];
+
+    const layoutWeak = computeGraphLayout(nodes, [
+      { source: "a", target: "b", strength: 1 },
+      { source: "b", target: "c", strength: 1 },
+    ]);
+    const layoutStrong = computeGraphLayout(nodes, [
+      { source: "a", target: "b", strength: 3 },
+      { source: "b", target: "c", strength: 3 },
+    ]);
+
+    expect(layoutStrong.nodes).toEqual(layoutWeak.nodes);
+    expect(
+      layoutStrong.links.map(({ x1, y1, x2, y2 }) => ({ x1, y1, x2, y2 }))
+    ).toEqual(layoutWeak.links.map(({ x1, y1, x2, y2 }) => ({ x1, y1, x2, y2 })));
+  });
 });
