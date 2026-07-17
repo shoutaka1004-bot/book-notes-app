@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { createBook, deleteBook } from "./books";
-import { createLink, deleteLink, listLinksForBook } from "./links";
+import { createLink, deleteLink, listAllLinks, listLinksForBook } from "./links";
 import type { Book } from "../../types/book";
 
 let bookA: Book;
@@ -67,5 +67,17 @@ describe("book_links CRUD", () => {
 
   it("rejects a self-referencing link (book_links_no_self_link constraint)", async () => {
     await expect(createLink(bookA.id, bookA.id)).rejects.toThrow();
+  });
+
+  it("listAllLinks returns the created link as a plain BookLink (no joined book info)", async () => {
+    const link = await createLink(bookA.id, bookB.id, "全件取得テスト");
+    createdLinkIds.push(link.id);
+
+    const all = await listAllLinks();
+    const found = all.find((l) => l.id === link.id);
+    expect(found).toBeTruthy();
+    expect(found?.from_book_id).toBe(bookA.id);
+    expect(found?.to_book_id).toBe(bookB.id);
+    expect(found?.note).toBe("全件取得テスト");
   });
 });

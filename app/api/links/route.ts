@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createLink, deleteLink, listLinksForBook } from "../../../lib/db/links";
+import {
+  createLink,
+  deleteLink,
+  listAllLinks,
+  listLinksForBook,
+} from "../../../lib/db/links";
 import { getBookById } from "../../../lib/db/books";
 
 /**
@@ -38,19 +43,28 @@ const deleteLinkSchema = z.object({
 });
 
 /**
- * 指定した本に紐づくリンク一覧を取得する。`bookId`クエリパラメータは必須。
- * 存在しない本の`bookId`を渡した場合はエラーにせず空配列を返す
- * （`listLinksForBook`はフィルタに一致する行が無いだけであり、本自体の
- * 存在確認は行わない。一覧取得はGETの性質上、副作用が無く実害も無いため）。
+ * リンク一覧を取得する。
+ *
+ * - `bookId`クエリパラメータあり: その本に紐づくリンクを、本情報・向き(`direction`)付きで返す
+ *   （`BookLinkWithBook[]`、既存の挙動を変更しない）。存在しない本の`bookId`を渡した場合も
+ *   エラーにせず空配列を返す（`listLinksForBook`はフィルタに一致する行が無いだけであり、
+ *   本自体の存在確認は行わない。一覧取得はGETの性質上、副作用が無く実害も無いため）。
+ * - `bookId`省略: 全リンクを本情報のJOIN無しでそのまま返す（`BookLink[]`）。相関図画面
+ *   （`app/graph/page.tsx`、タスク24）が`GET /api/books`（全件）と突き合わせて使う用途で、
+ *   本の詳細情報はここでは持たせない。
  */
 export async function GET(request: NextRequest) {
   const bookId = request.nextUrl.searchParams.get("bookId");
 
   if (!bookId) {
-    return NextResponse.json(
-      { error: "bookIdクエリパラメータは必須です" },
-      { status: 400 }
-    );
+    try {
+      const links = await listAllLinks();
+      return NextResponse.json(links, { status: 200 });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "本のリンク全件取得に失敗しました";
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
   }
 
   const bookIdParsed = bookIdQuerySchema.safeParse(bookId);

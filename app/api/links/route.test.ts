@@ -185,11 +185,39 @@ describe("POST /api/links", () => {
 });
 
 describe("GET /api/links", () => {
-  it("returns 400 when bookId is missing", async () => {
+  it("returns 200 with all links (BookLink[], no book info) when bookId is omitted", async () => {
+    const bookA = await makeBook("全件取得確認用A");
+    const bookB = await makeBook("全件取得確認用B");
+    const bookC = await makeBook("全件取得確認用C（リンク無し）");
+
+    const created = await POST(
+      postRequest({ from_book_id: bookA.id, to_book_id: bookB.id, note: "全件取得テスト" })
+    );
+    const createdLink = await created.json();
+
     const res = await GET(getRequest(null));
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toBeTruthy();
+    expect(res.status).toBe(200);
+    const links = await res.json();
+    expect(Array.isArray(links)).toBe(true);
+
+    const found = links.find((link: { id: string }) => link.id === createdLink.id);
+    expect(found).toBeTruthy();
+    expect(found.from_book_id).toBe(bookA.id);
+    expect(found.to_book_id).toBe(bookB.id);
+    expect(found.note).toBe("全件取得テスト");
+    // BookLinkWithBook形式（本情報・directionのJOIN）ではないことを確認
+    expect(found.book).toBeUndefined();
+    expect(found.direction).toBeUndefined();
+
+    // bookCはリンクを持たないため、全件取得結果のいずれの行にも登場しない
+    expect(
+      links.some(
+        (link: { from_book_id: string; to_book_id: string }) =>
+          link.from_book_id === bookC.id || link.to_book_id === bookC.id
+      )
+    ).toBe(false);
+
+    await DELETE(deleteRequest({ id: createdLink.id }));
   });
 
   it("returns 400 when bookId is not a valid UUID", async () => {

@@ -46,6 +46,22 @@ export async function createLink(
 }
 
 /**
+ * `book_links`テーブルの全リンクを、本情報のJOIN無しでそのまま取得する。
+ * 相関図画面（`app/graph/page.tsx`）が、`GET /api/books`で別途取得した全本のノード情報と
+ * 突き合わせるために使う（`listLinksForBook`のような相手本の情報は不要なため含めない）。
+ */
+export async function listAllLinks(): Promise<BookLink[]> {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase.from("book_links").select("*");
+
+  if (error) {
+    throw new Error(`本のリンク全件取得に失敗しました: ${error.message}`);
+  }
+
+  return data as BookLink[];
+}
+
+/**
  * リンクを削除する。
  */
 export async function deleteLink(id: string): Promise<void> {
