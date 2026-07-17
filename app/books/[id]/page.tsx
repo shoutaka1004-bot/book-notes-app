@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Book } from "../../../types/book";
 import { Field } from "../Field";
+import { LinkManager } from "../LinkManager";
 import {
   bookFormSchema,
   MAX_LENGTHS,
@@ -531,6 +532,8 @@ export default function BookDetailPage() {
                 {isSaving ? "保存中…" : "この内容で保存する"}
               </button>
             </form>
+
+            <LinkManager bookId={bookId} />
 
             {deleteError && (
               <p role="alert" className="text-sm text-red-600 dark:text-red-400">
