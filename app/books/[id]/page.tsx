@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import type { BookSearchResult, OpenBdBookInfo } from "../../../types/book";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import type { Book } from "../../../types/book";
 import { Field } from "../Field";
 import {
   bookFormSchema,
@@ -10,37 +11,23 @@ import {
   MAX_TAGS,
   MAX_TAG_LENGTH,
   type RawBookFormValues,
-} from "./validation";
+} from "../new/validation";
 
-/**
- * `/api/book-search`が返すエラーを読み取れなかった場合、または通信自体に失敗した場合に
- * 表示する汎用の日本語エラー文言（技術的なエラーをそのまま出さない方針、`app/page.tsx`・
- * `app/login/page.tsx`と同様）。
- */
-const GENERIC_SEARCH_ERROR_MESSAGE =
-  "書籍の検索に失敗しました。時間をおいて再度お試しください。";
+/** `GET /api/books/[id]`が読み取れないエラーで失敗した場合の汎用日本語エラー文言
+ * （技術的なエラーをそのまま出さない方針、他画面と同様）。 */
+const GENERIC_LOAD_ERROR_MESSAGE =
+  "本の情報の取得に失敗しました。時間をおいて再度お試しください。";
 
-/** `POST /api/books`が返すエラーを読み取れなかった場合、または通信自体に失敗した場合に
- * 表示する汎用の日本語エラー文言。 */
+/** `PUT /api/books/[id]`向けの汎用エラー文言。 */
 const GENERIC_SAVE_ERROR_MESSAGE =
-  "本の登録に失敗しました。時間をおいて再度お試しください。";
+  "本の更新に失敗しました。時間をおいて再度お試しください。";
 
-const EMPTY_FORM_VALUES: RawBookFormValues = {
-  title: "",
-  author: "",
-  publisher: "",
-  rating: "",
-  finished_date: "",
-  one_line_summary: "",
-  content_summary: "",
-  why_resonated: "",
-  how_to_apply: "",
-  surprising_point: "",
-  quote: "",
-  tags: "",
-};
+/** `DELETE /api/books/[id]`向けの汎用エラー文言。 */
+const GENERIC_DELETE_ERROR_MESSAGE =
+  "本の削除に失敗しました。時間をおいて再度お試しください。";
 
-/** フィールドごとのエラーメッセージ（`bookFormSchema`のissuesから`path[0]`単位で抽出）。 */
+/** フィールドごとのエラーメッセージ（`bookFormSchema`のissuesから`path[0]`単位で抽出）。
+ * `app/books/new/page.tsx`と同じ型・組み立て方。 */
 type FieldErrors = Partial<Record<keyof RawBookFormValues, string>>;
 
 const inputClassName =
@@ -48,101 +35,104 @@ const inputClassName =
 const textareaClassName =
   "min-h-11 w-full rounded-lg border border-zinc-300 px-4 py-3 text-base text-zinc-900 outline-none focus:border-zinc-500 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50";
 
-type Step = "search" | "form";
+/** `Book`（DBの生の値）を、フォームstate（すべて文字列ベース）の初期値に変換する。 */
+function bookToFormValues(book: Book): RawBookFormValues {
+  return {
+    title: book.title,
+    author: book.author ?? "",
+    publisher: book.publisher ?? "",
+    rating: book.rating !== null ? String(book.rating) : "",
+    finished_date: book.finished_date ?? "",
+    one_line_summary: book.one_line_summary ?? "",
+    content_summary: book.content_summary ?? "",
+    why_resonated: book.why_resonated ?? "",
+    how_to_apply: book.how_to_apply ?? "",
+    surprising_point: book.surprising_point ?? "",
+    quote: book.quote ?? "",
+    tags: book.tags.join(", "),
+  };
+}
 
 /**
- * 本の新規登録画面。検索ステップと、記録項目を入力するフォームステップの2ステップで構成する。
- * 検索ステップで選んだ候補（またはnull＝手動入力）を`selectedCandidate`として保持し、
- * フォームステップの初期値（書名・著者・出版社、ISBNがあればopenBDでの表紙・出版社の自動補完）
- * に引き継ぐ。
+ * 本の詳細・編集画面。表示専用モードは設けず、取得した記録内容をそのまま編集可能な
+ * フォームの初期値として表示する（常時編集可能なフォーム。多くのメモアプリと同じ発想）。
+ * 保存は`PUT /api/books/[id]`、削除は確認ダイアログを挟んだ上で`DELETE /api/books/[id]`を呼ぶ。
  */
-export default function NewBookPage() {
+export default function BookDetailPage() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>("search");
-  const [selectedCandidate, setSelectedCandidate] =
-    useState<BookSearchResult | null>(null);
+  const params = useParams<{ id: string }>();
+  const bookId = params.id;
 
-  const [keyword, setKeyword] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [results, setResults] = useState<BookSearchResult[] | null>(null);
-  const [hasSearched, setHasSearched] = useState(false);
+  const [book, setBook] = useState<Book | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
 
-  const [formValues, setFormValues] = useState<RawBookFormValues>(EMPTY_FORM_VALUES);
+  const [formValues, setFormValues] = useState<RawBookFormValues | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  // 検索候補選択時（selectedCandidate.isbnがある場合）にopenBDから自動取得した表紙URL。
-  // この画面に手動での表紙URL入力欄は無く、保存時のペイロードにそのまま含める。
-  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  /**
-   * フォームステップへの遷移時に呼ぶ共通の初期化処理。`selectedCandidate`
-   * （検索候補選択時はメタデータ、手動入力時はnull）を反映してフォームstateをリセットする。
-   * イベントハンドラ（ユーザー操作）の中で直接呼び出す同期処理であり、useEffectでの
-   * レンダー後の後追い初期化にはしない（`react-hooks/set-state-in-effect`が示す通り、
-   * 導出可能な初期状態をeffect内で都度setStateするのは不要なカスケード再レンダーを招くため）。
-   */
-  function resetFormForCandidate(candidate: BookSearchResult | null) {
-    setFormValues({
-      ...EMPTY_FORM_VALUES,
-      title: candidate?.title ?? "",
-      author: candidate?.author ?? "",
-      publisher: candidate?.publisher ?? "",
-    });
-    setFieldErrors({});
-    setSaveError(null);
-    setCoverUrl(null);
-  }
-
-  // 検索候補選択時（selectedCandidate.isbnがある場合）のみ、openBDから表紙・出版社情報を
-  // 自動取得する（外部APIへの問い合わせという「外部システムとの同期」なのでuseEffectで扱う）。
   useEffect(() => {
-    const isbn = selectedCandidate?.isbn;
-    if (step !== "form" || !isbn) {
-      return;
+    let cancelled = false;
+
+    async function loadBook() {
+      setLoadError(null);
+      setNotFound(false);
+      try {
+        const response = await fetch(`/api/books/${bookId}`);
+
+        if (response.status === 401) {
+          router.push("/login");
+          return;
+        }
+
+        if (response.status === 404) {
+          if (!cancelled) {
+            setNotFound(true);
+          }
+          return;
+        }
+
+        if (!response.ok) {
+          if (!cancelled) {
+            setLoadError(GENERIC_LOAD_ERROR_MESSAGE);
+          }
+          return;
+        }
+
+        const data: Book = await response.json();
+        if (!cancelled) {
+          setBook(data);
+          setFormValues(bookToFormValues(data));
+        }
+      } catch {
+        if (!cancelled) {
+          setLoadError(GENERIC_LOAD_ERROR_MESSAGE);
+        }
+      }
     }
 
-    let cancelled = false;
-    (async () => {
-      try {
-        const response = await fetch(
-          `/api/book-info?isbn=${encodeURIComponent(isbn)}`
-        );
-        if (!response.ok || cancelled) {
-          // openBDでの自動取得はあくまで補助であり、失敗してもフォーム入力は継続できるため、
-          // ユーザーへのエラー表示はしない（保存時のバリデーション・API疎通確認は別に検証する）。
-          return;
-        }
-        const info: OpenBdBookInfo | null = await response.json();
-        if (!info || cancelled) {
-          return;
-        }
-        setCoverUrl(info.coverUrl);
-        setFormValues((current) => ({
-          ...current,
-          publisher: current.publisher !== "" ? current.publisher : info.publisher ?? "",
-        }));
-      } catch {
-        // 通信自体に失敗した場合も同様にフォーム入力の継続を優先し、無視する。
-      }
-    })();
+    loadBook();
 
     return () => {
       cancelled = true;
     };
-  }, [step, selectedCandidate]);
+  }, [bookId, router]);
 
   function updateField<K extends keyof RawBookFormValues>(
     field: K,
     value: RawBookFormValues[K]
   ) {
-    setFormValues((current) => ({ ...current, [field]: value }));
+    setFormValues((current) =>
+      current ? { ...current, [field]: value } : current
+    );
   }
 
   async function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isSaving) {
+    if (isSaving || !formValues) {
       return;
     }
 
@@ -165,17 +155,13 @@ export default function NewBookPage() {
     setIsSaving(true);
 
     try {
-      const response = await fetch("/api/books", {
-        method: "POST",
+      const response = await fetch(`/api/books/${bookId}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...parsed.data,
-          isbn: selectedCandidate?.isbn ?? null,
-          cover_url: coverUrl,
-        }),
+        body: JSON.stringify(parsed.data),
       });
 
-      if (response.status === 201) {
+      if (response.status === 200) {
         router.push("/");
         return;
       }
@@ -207,172 +193,110 @@ export default function NewBookPage() {
     }
   }
 
-  async function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (isSearching || keyword.trim() === "") {
+  async function handleDelete() {
+    if (isDeleting) {
+      return;
+    }
+    const confirmed = window.confirm(
+      "この本の記録を削除しますか？元に戻せません。"
+    );
+    if (!confirmed) {
       return;
     }
 
-    setIsSearching(true);
-    setSearchError(null);
-
+    setDeleteError(null);
+    setIsDeleting(true);
     try {
-      const response = await fetch(
-        `/api/book-search?keyword=${encodeURIComponent(keyword.trim())}`
-      );
+      const response = await fetch(`/api/books/${bookId}`, {
+        method: "DELETE",
+      });
+
+      if (response.status === 200) {
+        router.push("/");
+        return;
+      }
 
       if (response.status === 401) {
-        // proxy.tsはAPIルートに対してリダイレクトせずJSONで401を返す設計のため、
-        // ページ側でこの応答を受けて明示的にログイン画面へ遷移させる（他画面と同じ方針）。
         router.push("/login");
         return;
       }
 
-      if (!response.ok) {
-        setSearchError(GENERIC_SEARCH_ERROR_MESSAGE);
-        setResults(null);
-        return;
+      let message = GENERIC_DELETE_ERROR_MESSAGE;
+      try {
+        const data: unknown = await response.json();
+        if (
+          data &&
+          typeof data === "object" &&
+          "error" in data &&
+          typeof (data as { error: unknown }).error === "string"
+        ) {
+          message = (data as { error: string }).error;
+        }
+      } catch {
+        // レスポンスがJSONとして読めない場合は汎用メッセージのままにする。
       }
-
-      const data: unknown = await response.json();
-      setResults(Array.isArray(data) ? (data as BookSearchResult[]) : []);
+      setDeleteError(message);
     } catch {
-      setSearchError(GENERIC_SEARCH_ERROR_MESSAGE);
-      setResults(null);
+      setDeleteError(GENERIC_DELETE_ERROR_MESSAGE);
     } finally {
-      setHasSearched(true);
-      setIsSearching(false);
+      setIsDeleting(false);
     }
   }
 
-  function handleSelectCandidate(candidate: BookSearchResult) {
-    setSelectedCandidate(candidate);
-    resetFormForCandidate(candidate);
-    setStep("form");
-  }
-
-  function handleManualEntry() {
-    setSelectedCandidate(null);
-    resetFormForCandidate(null);
-    setStep("form");
-  }
-
-  function handleBackToSearch() {
-    setStep("search");
-  }
+  const isLoading = !notFound && !loadError && !formValues;
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-zinc-50 dark:bg-black">
-      <header className="flex items-center border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 sm:px-6">
+      <header className="flex items-center gap-3 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 sm:px-6">
+        <Link
+          href="/"
+          className="flex h-11 min-h-11 items-center justify-center rounded-lg px-2 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+        >
+          ← 一覧に戻る
+        </Link>
         <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-          本を記録する
+          本の記録を編集
         </h1>
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8 sm:px-6">
-        {step === "search" && (
-          <div className="flex flex-col gap-6">
-            <form
-              onSubmit={handleSearchSubmit}
-              className="flex flex-col gap-3 sm:flex-row"
+        {isLoading && (
+          <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+            読み込み中…
+          </p>
+        )}
+
+        {notFound && (
+          <div className="flex flex-col items-center gap-4 py-16 text-center">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              この本の記録が見つかりませんでした。
+            </p>
+            <Link
+              href="/"
+              className="flex h-11 min-h-11 items-center justify-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
             >
-              <label htmlFor="keyword" className="sr-only">
-                書名・著者名で検索
-              </label>
-              <input
-                id="keyword"
-                name="keyword"
-                type="text"
-                placeholder="書名・著者名で検索"
-                autoFocus
-                value={keyword}
-                onChange={(event) => setKeyword(event.target.value)}
-                disabled={isSearching}
-                className="h-12 flex-1 rounded-lg border border-zinc-300 px-4 text-base text-zinc-900 outline-none focus:border-zinc-500 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-              />
-              <button
-                type="submit"
-                disabled={isSearching || keyword.trim() === ""}
-                className="flex h-12 min-h-11 items-center justify-center rounded-lg bg-zinc-900 px-6 text-base font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
-              >
-                {isSearching ? "検索中…" : "検索"}
-              </button>
-            </form>
-
-            {searchError && (
-              <p
-                role="alert"
-                className="text-sm text-red-600 dark:text-red-400"
-              >
-                {searchError}
-              </p>
-            )}
-
-            {hasSearched && !searchError && results !== null && results.length === 0 && (
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                該当する本が見つかりませんでした。キーワードを変えて再度検索するか、手動で入力してください。
-              </p>
-            )}
-
-            {results !== null && results.length > 0 && (
-              <ul className="flex flex-col gap-2">
-                {results.map((candidate, index) => (
-                  <li key={`${candidate.isbn ?? candidate.title}-${index}`}>
-                    <button
-                      type="button"
-                      onClick={() => handleSelectCandidate(candidate)}
-                      className="flex min-h-11 w-full flex-col gap-1 rounded-lg bg-white p-4 text-left shadow-sm transition-colors hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800"
-                    >
-                      <span className="font-medium text-zinc-900 dark:text-zinc-50">
-                        {candidate.title}
-                      </span>
-                      <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                        {candidate.author ?? "著者不明"}
-                        {candidate.publisher ? ` / ${candidate.publisher}` : ""}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <div className="border-t border-zinc-200 pt-6 dark:border-zinc-800">
-              <button
-                type="button"
-                onClick={handleManualEntry}
-                className="flex h-11 min-h-11 w-full items-center justify-center rounded-lg border border-zinc-300 px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              >
-                検索せず手動で入力する
-              </button>
-            </div>
+              一覧に戻る
+            </Link>
           </div>
         )}
 
-        {step === "form" && (
-          <div className="flex flex-col gap-6">
-            <button
-              type="button"
-              onClick={handleBackToSearch}
-              className="flex h-11 min-h-11 w-fit items-center justify-center rounded-lg px-2 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-            >
-              ← 検索に戻る
-            </button>
+        {loadError && (
+          <p role="alert" className="text-center text-sm text-red-600 dark:text-red-400">
+            {loadError}
+          </p>
+        )}
 
-            {selectedCandidate && (
-              <div className="rounded-lg bg-white p-4 shadow-sm dark:bg-zinc-900">
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  選択した本
-                </p>
-                <p className="font-medium text-zinc-900 dark:text-zinc-50">
-                  {selectedCandidate.title}
-                </p>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {selectedCandidate.author ?? "著者不明"}
-                  {selectedCandidate.publisher
-                    ? ` / ${selectedCandidate.publisher}`
-                    : ""}
-                </p>
-              </div>
+        {formValues && book && (
+          <div className="flex flex-col gap-6">
+            {book.cover_url && (
+              // 素の<img>を意図的に使用（next/imageは外部ドメイン許可設定が必要になるため、
+              // BRIEF記載の方針通りこちらを採用。書影ドメインは登録候補によって変わりうる）。
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={book.cover_url}
+                alt={`${book.title}の表紙`}
+                className="h-32 w-auto self-start rounded-lg object-cover shadow-sm"
+              />
             )}
 
             <form onSubmit={handleFormSubmit} className="flex flex-col gap-5">
@@ -591,9 +515,26 @@ export default function NewBookPage() {
                 disabled={isSaving}
                 className="flex h-12 min-h-11 w-full items-center justify-center rounded-lg bg-zinc-900 text-base font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
               >
-                {isSaving ? "保存中…" : "この内容で記録する"}
+                {isSaving ? "保存中…" : "この内容で保存する"}
               </button>
             </form>
+
+            {deleteError && (
+              <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+                {deleteError}
+              </p>
+            )}
+
+            <div className="border-t border-zinc-200 pt-6 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="flex h-11 min-h-11 w-full items-center justify-center rounded-lg border border-red-300 px-4 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
+              >
+                {isDeleting ? "削除中…" : "この本の記録を削除する"}
+              </button>
+            </div>
           </div>
         )}
       </main>
