@@ -50,4 +50,18 @@
 
 - [x] タスク26: ヘッドレス起動確認（`npm run build && npm run start`後、主要ページ・APIルートへの疎通確認）
 - [x] タスク27（親AI担当）: Vercelへのデプロイ設定（GitHub連携、環境変数 `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` / `APP_PASSWORD` / `ANTHROPIC_API_KEY` の設定）
-- [ ] タスク28（人間による確認待ち）: 公開URLへの実アクセスで、ログイン→本の登録→一覧表示という一連のデータを伴う操作を試してもらう
+- [x] タスク28（人間による確認待ち）: 公開URLへの実アクセスで、ログイン→本の登録→一覧表示という一連のデータを伴う操作を試してもらう
+
+## デプロイ後の追加改善（人間のフィードバックに基づく、BRIEF.md第4-8節参照）
+
+- [ ] タスク29: `book_links`に`strength`列（smallint、1〜3、デフォルト2、CHECK制約）を追加するマイグレーションSQL作成。検証: SQL構文チェック
+- [ ] タスク30（親AI担当）: マイグレーションSQLを実際のSupabaseプロジェクトに適用する
+- [ ] タスク31: `lib/db/links.ts`の型（`BookLink`等）・`createLink`関数を`strength`パラメータ対応に更新（省略時デフォルト2）。検証: 既存テスト＋新規ユニットテスト
+- [ ] タスク32: `POST /api/links`の`createLinkSchema`に`strength`（1〜3の整数、省略時2）を追加、GETのレスポンスにも`strength`が含まれることを確認。検証: API疎通確認
+- [ ] タスク33: `LinkManager`UIに関連度選択（弱い/普通/強い、デフォルト「普通」）を追加し、追加処理が`strength`を送信するようにする。検証: `/api/links`への疎通確認をコードレビューで確認
+- [ ] タスク34: 一覧画面（`app/page.tsx`）のカードに表紙画像（`cover_url`、48×64px、無ければ非表示）を追加。検証: コードレビュー
+- [ ] タスク35: 一覧画面のグリッドに`xl:grid-cols-4`を追加。検証: 主要ブレークポイントでのレイアウト崩れが無いことをコードレビューで確認
+- [ ] タスク36: 相関図ノード（`app/graph/graphLayout.ts`・`app/graph/page.tsx`）に表紙画像（円形クリップ）を追加。検証: 既存のグラフレイアウトのユニットテストに影響が無いこと、描画コードのレビュー
+- [ ] タスク37: 相関図の線をstrengthに応じた太さ・色に変更。検証: サンプルデータでのユニットテスト＋描画コードのレビュー
+- [ ] タスク38: おすすめ本画面（`app/recommend/page.tsx`）にスケルトンローディング表示を追加。検証: コードレビュー
+- [ ] タスク39: ヘッドレス起動確認（`npm run build && npm run start`後、新規/変更されたルートへの疎通確認。特にstrength付きリンク作成→相関図用データ取得の一連の流れを確認）
