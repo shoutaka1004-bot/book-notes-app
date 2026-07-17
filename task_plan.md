@@ -54,8 +54,8 @@
 
 ## デプロイ後の追加改善（人間のフィードバックに基づく、BRIEF.md第4-8節参照）
 
-- [ ] タスク29: `book_links`に`strength`列（smallint、1〜3、デフォルト2、CHECK制約）を追加するマイグレーションSQL作成。検証: SQL構文チェック
-- [ ] タスク30（親AI担当）: マイグレーションSQLを実際のSupabaseプロジェクトに適用する
+- [x] タスク29: `book_links`に`strength`列（smallint、1〜3、デフォルト2、CHECK制約）を追加するマイグレーションSQL作成。検証: SQL構文チェック
+- [x] タスク30（親AI担当）: マイグレーションSQLを実際のSupabaseプロジェクトに適用する
 - [ ] タスク31: `lib/db/links.ts`の型（`BookLink`等）・`createLink`関数を`strength`パラメータ対応に更新（省略時デフォルト2）。検証: 既存テスト＋新規ユニットテスト
 - [ ] タスク32: `POST /api/links`の`createLinkSchema`に`strength`（1〜3の整数、省略時2）を追加、GETのレスポンスにも`strength`が含まれることを確認。検証: API疎通確認
 - [ ] タスク33: `LinkManager`UIに関連度選択（弱い/普通/強い、デフォルト「普通」）を追加し、追加処理が`strength`を送信するようにする。検証: `/api/links`への疎通確認をコードレビューで確認
