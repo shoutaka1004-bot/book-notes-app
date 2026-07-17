@@ -153,7 +153,7 @@ export default function Home() {
         )}
 
         {books !== null && books.length > 0 && (
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {books.map((book) => (
               <li key={book.id}>
                 <Link
