@@ -154,6 +154,28 @@ describe("POST /api/links", () => {
     await DELETE(deleteRequest({ id: created.id }));
   });
 
+  it("returns 400 when the reverse-direction pair is linked after the forward direction already exists", async () => {
+    // book_links_unique_pair は (from_book_id, to_book_id) の向き込み一意制約のため、
+    // DB制約だけではA→B作成後のB→Aを防げない。APIルート側の事前チェックで防ぐ。
+    const bookA = await makeBook("逆向き重複確認用A");
+    const bookB = await makeBook("逆向き重複確認用B");
+
+    const forward = await POST(
+      postRequest({ from_book_id: bookA.id, to_book_id: bookB.id })
+    );
+    expect(forward.status).toBe(201);
+    const created = await forward.json();
+
+    const reverse = await POST(
+      postRequest({ from_book_id: bookB.id, to_book_id: bookA.id })
+    );
+    expect(reverse.status).toBe(400);
+    const body = await reverse.json();
+    expect(body.error).toBeTruthy();
+
+    await DELETE(deleteRequest({ id: created.id }));
+  });
+
   it("returns 400 when the request body is not valid JSON", async () => {
     const res = await POST(rawPostRequest("{not-json"));
     expect(res.status).toBe(400);

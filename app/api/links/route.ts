@@ -76,9 +76,15 @@ export async function GET(request: NextRequest) {
  * 外部キー制約違反の生エラーで500になってしまうため、`app/api/books/[id]/route.ts`
  * のPUT/DELETEと同じ「事前存在確認」パターンを踏襲する）。
  *
- * 重複ペア（DB制約`book_links_unique_pair`）は事前チェック用の関数が
- * `lib/db/links.ts`に無いため、`createLink`が投げるエラーメッセージに
- * 制約名`book_links_unique_pair`が含まれるかどうかで判定し、分かりやすい400に変換する。
+ * 重複ペアは、DB制約`book_links_unique_pair`（`unique (from_book_id, to_book_id)`）
+ * だけでは向き込みの一意制約のため、A→Bが既にある状態でB→Aを作成しようとすると
+ * DB制約に引っかからず201で成功してしまう（実機で確認済み）。これは「この2冊は
+ * 既にリンクされている」という利用者の期待・エラーメッセージの意図と矛盾するため、
+ * `createLink`を呼ぶ前に`listLinksForBook(from_book_id)`（既存関数、変更なし）で
+ * `to_book_id`が向きに関わらず既に含まれていないか確認し、含まれていればDBに到達
+ * させず400を返す。DB制約側は`book_links_unique_pair`の完全一致（同じ向きの重複）
+ * のみを検出するため、その場合のフォールバックとして`createLink`が投げるエラー
+ * メッセージに制約名`book_links_unique_pair`が含まれるかどうかでも判定する。
  */
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -110,6 +116,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "指定された本が見つかりません" },
         { status: 404 }
+      );
+    }
+
+    const existingLinks = await listLinksForBook(from_book_id);
+    const alreadyLinked = existingLinks.some((link) => link.book.id === to_book_id);
+    if (alreadyLinked) {
+      return NextResponse.json(
+        { error: "この2冊の本は既にリンクされています" },
+        { status: 400 }
       );
     }
 
