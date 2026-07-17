@@ -91,6 +91,12 @@ export default function GraphPage() {
     return computeGraphLayout(nodeInputs, linkInputs);
   }, [books, links]);
 
+  // `graphLayout.ts`の`PositionedGraphNode`はDOM非依存の座標計算に語彙を閉じているため
+  // `cover_url`を持たない。描画側（ここ）でノードIDから元の`book`を引き直す。
+  const booksById = useMemo(() => {
+    return new Map((books ?? []).map((book) => [book.id, book]));
+  }, [books]);
+
   function goToBook(bookId: string) {
     router.push(`/books/${bookId}`);
   }
@@ -154,6 +160,20 @@ export default function GraphPage() {
               role="img"
               aria-label="本のつながりの相関図"
             >
+              <defs>
+                {layout.nodes.map((node) => {
+                  const coverUrl = booksById.get(node.id)?.cover_url;
+                  if (!coverUrl) {
+                    return null;
+                  }
+                  return (
+                    <clipPath key={node.id} id={`node-cover-clip-${node.id}`}>
+                      <circle cx={node.x} cy={node.y} r={NODE_RADIUS} />
+                    </clipPath>
+                  );
+                })}
+              </defs>
+
               {layout.links.map((link) => (
                 <line
                   key={`${link.source}-${link.target}`}
@@ -166,33 +186,59 @@ export default function GraphPage() {
                 />
               ))}
 
-              {layout.nodes.map((node) => (
-                <g
-                  key={node.id}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`${node.title}の詳細を開く`}
-                  onClick={() => goToBook(node.id)}
-                  onKeyDown={(event) => handleNodeKeyDown(event, node.id)}
-                  className="cursor-pointer focus:outline-none"
-                >
-                  <circle
-                    cx={node.x}
-                    cy={node.y}
-                    r={NODE_RADIUS}
-                    className="fill-zinc-900 stroke-white transition-opacity hover:opacity-80 focus:opacity-80 dark:fill-zinc-50 dark:stroke-zinc-900"
-                    strokeWidth={2}
-                  />
-                  <text
-                    x={node.x}
-                    y={node.y + NODE_RADIUS + 14}
-                    textAnchor="middle"
-                    className="select-none fill-zinc-700 text-[11px] dark:fill-zinc-300"
+              {layout.nodes.map((node) => {
+                const coverUrl = booksById.get(node.id)?.cover_url;
+                return (
+                  <g
+                    key={node.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${node.title}の詳細を開く`}
+                    onClick={() => goToBook(node.id)}
+                    onKeyDown={(event) => handleNodeKeyDown(event, node.id)}
+                    className="cursor-pointer focus:outline-none"
                   >
-                    {node.title}
-                  </text>
-                </g>
-              ))}
+                    {coverUrl ? (
+                      <>
+                        <image
+                          href={coverUrl}
+                          x={node.x - NODE_RADIUS}
+                          y={node.y - NODE_RADIUS}
+                          width={NODE_RADIUS * 2}
+                          height={NODE_RADIUS * 2}
+                          preserveAspectRatio="xMidYMid slice"
+                          clipPath={`url(#node-cover-clip-${node.id})`}
+                          className="transition-opacity hover:opacity-80 focus:opacity-80"
+                        />
+                        <circle
+                          cx={node.x}
+                          cy={node.y}
+                          r={NODE_RADIUS}
+                          fill="none"
+                          className="stroke-white dark:stroke-zinc-900"
+                          strokeWidth={2}
+                        />
+                      </>
+                    ) : (
+                      <circle
+                        cx={node.x}
+                        cy={node.y}
+                        r={NODE_RADIUS}
+                        className="fill-zinc-900 stroke-white transition-opacity hover:opacity-80 focus:opacity-80 dark:fill-zinc-50 dark:stroke-zinc-900"
+                        strokeWidth={2}
+                      />
+                    )}
+                    <text
+                      x={node.x}
+                      y={node.y + NODE_RADIUS + 14}
+                      textAnchor="middle"
+                      className="select-none fill-zinc-700 text-[11px] dark:fill-zinc-300"
+                    >
+                      {node.title}
+                    </text>
+                  </g>
+                );
+              })}
             </svg>
           </div>
         )}
