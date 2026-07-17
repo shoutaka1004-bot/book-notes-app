@@ -13,7 +13,7 @@ const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
  * `title`のみ必須（マイグレーションSQLで`not null`）で、他は全てnullable + optional
  * （マイグレーションSQLで他の列は全てnullable、`NewBookInput`の型定義と一致させている）。
  */
-const createBookSchema = z.object({
+export const createBookSchema = z.object({
   title: z.string().min(1, "titleは必須です"),
   author: z.string().nullable().optional(),
   publisher: z.string().nullable().optional(),
