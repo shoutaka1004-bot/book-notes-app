@@ -45,6 +45,29 @@ describe("book_links CRUD", () => {
     expect(linksFromB[0].book.id).toBe(bookA.id);
   });
 
+  it("defaults strength to 2 (DB default) when omitted at creation", async () => {
+    const link = await createLink(bookA.id, bookB.id, "strength省略テスト");
+    createdLinkIds.push(link.id);
+
+    expect(link.strength).toBe(2);
+
+    const linksFromA = await listLinksForBook(bookA.id);
+    expect(linksFromA[0].strength).toBe(2);
+  });
+
+  it("stores an explicitly specified strength and returns it via listLinksForBook", async () => {
+    const link = await createLink(bookA.id, bookB.id, "strength明示指定テスト", 3);
+    createdLinkIds.push(link.id);
+
+    expect(link.strength).toBe(3);
+
+    const linksFromA = await listLinksForBook(bookA.id);
+    expect(linksFromA[0].strength).toBe(3);
+
+    const linksFromB = await listLinksForBook(bookB.id);
+    expect(linksFromB[0].strength).toBe(3);
+  });
+
   it("deletes a link so it no longer appears for either book", async () => {
     const link = await createLink(bookA.id, bookB.id);
 
@@ -79,5 +102,6 @@ describe("book_links CRUD", () => {
     expect(found?.from_book_id).toBe(bookA.id);
     expect(found?.to_book_id).toBe(bookB.id);
     expect(found?.note).toBe("全件取得テスト");
+    expect(found?.strength).toBe(2);
   });
 });

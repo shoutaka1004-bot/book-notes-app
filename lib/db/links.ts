@@ -10,6 +10,7 @@ interface LinkedBookRow {
 interface BookLinkRow {
   id: string;
   note: string | null;
+  strength: number;
   from_book_id: string;
   to_book_id: string;
   from_book: LinkedBookRow | LinkedBookRow[] | null;
@@ -25,16 +26,29 @@ function firstOf<T>(value: T | T[] | null): T | null {
 
 /**
  * 2冊の本の間にリンク（関連）を作成する。`book_links` は片方向で保存する。
+ * `strength`（関連度、1〜3）を省略した場合はDB側のデフォルト値（2）が適用される。
+ * アプリケーション側で重複してデフォルト値を持たないよう、未指定時は
+ * insertペイロードに`strength`キー自体を含めない。
  */
 export async function createLink(
   fromBookId: string,
   toBookId: string,
-  note?: string | null
+  note?: string | null,
+  strength?: number
 ): Promise<BookLink> {
   const supabase = getSupabaseServiceClient();
+  const insertPayload: Record<string, unknown> = {
+    from_book_id: fromBookId,
+    to_book_id: toBookId,
+    note: note ?? null,
+  };
+  if (strength !== undefined) {
+    insertPayload.strength = strength;
+  }
+
   const { data, error } = await supabase
     .from("book_links")
-    .insert({ from_book_id: fromBookId, to_book_id: toBookId, note: note ?? null })
+    .insert(insertPayload)
     .select("*")
     .single();
 
@@ -86,7 +100,7 @@ export async function listLinksForBook(
   const { data, error } = await supabase
     .from("book_links")
     .select(
-      `id, note, from_book_id, to_book_id,
+      `id, note, strength, from_book_id, to_book_id,
        from_book:books!book_links_from_book_id_fkey(id, title, author),
        to_book:books!book_links_to_book_id_fkey(id, title, author)`
     )
@@ -111,6 +125,7 @@ export async function listLinksForBook(
     return {
       linkId: row.id,
       note: row.note,
+      strength: row.strength,
       direction: isOutgoing ? "outgoing" : "incoming",
       book: otherBook,
     };

@@ -167,6 +167,9 @@ export function LinkManager({ bookId }: { bookId: string }) {
             {
               linkId: created.id,
               note: created.note,
+              // strength選択UIは未実装のため、この楽観的更新ではDB側のデフォルト値(2)を仮置きする。
+              // strength選択UIが実装されるタスクで、ここもAPIレスポンスの値を使うよう更新する。
+              strength: 2,
               direction: "outgoing",
               book: addedBook,
             },

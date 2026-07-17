@@ -88,6 +88,7 @@ export interface BookLink {
   from_book_id: string;
   to_book_id: string;
   note: string | null;
+  strength: number;
 }
 
 /**
@@ -98,6 +99,7 @@ export interface BookLink {
 export interface BookLinkWithBook {
   linkId: string;
   note: string | null;
+  strength: number;
   direction: "outgoing" | "incoming";
   book: Pick<Book, "id" | "title" | "author">;
 }
