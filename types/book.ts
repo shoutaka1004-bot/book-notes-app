@@ -41,6 +41,19 @@ export interface NewBookInput {
 /** `books` の更新入力。指定したフィールドのみ更新する。 */
 export type UpdateBookInput = Partial<NewBookInput>;
 
+/**
+ * NDL Search（国立国会図書館サーチ）のキーワード検索で得られる書誌候補。
+ * `lib/bookSearch.ts` の検索結果として使う。著者が複数いる場合は `; ` 区切りで1つの
+ * 文字列にまとめる（`Book.author` が単一文字列であることに合わせている）。
+ * 出版社・ISBNは元データに無い場合があるため `null` になりうる。
+ */
+export interface BookSearchResult {
+  title: string;
+  author: string | null;
+  publisher: string | null;
+  isbn: string | null;
+}
+
 export interface BookLink {
   id: string;
   from_book_id: string;
