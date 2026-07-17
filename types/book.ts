@@ -73,6 +73,16 @@ export interface OpenBdBookInfo {
   publishedDate: string | null;
 }
 
+/**
+ * Claude API（`lib/recommend.ts`）による、おすすめ本の提案1件分。
+ * `reason`はなぜその本を勧めるのか（記録済みの本の傾向を踏まえた理由）を表す。
+ */
+export interface BookRecommendation {
+  title: string;
+  author: string;
+  reason: string;
+}
+
 export interface BookLink {
   id: string;
   from_book_id: string;
