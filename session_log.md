@@ -263,3 +263,11 @@
 - レビュー: diff（1ファイル、約60行）を読み、クリックハンドラ・キーボード操作・ノードサイズが変更されていないこと、`cover_url`有無での分岐が計画通りであることを確認。`npx tsc --noEmit`・`npx vitest run`（17ファイル144テスト、`graphLayout.test.ts`5件を含む）を独立に再実行しすべて成功。
 - 副作用チェック: devサーバー未起動、プロセス残留無し（`netstat`で確認）。
 - 気になった点: 特になし。
+
+## タスク37: 相関図の線をstrengthに応じた太さ・色に変更
+- コミット: 4b143da
+- 計画確認: `GraphLinkInput.strength`（省略可能、デフォルト2）を`graphLayout.ts`内部でd3-forceのリンクオブジェクトに乗せて座標計算後も持ち回し、`PositionedGraphLink.strength`として出力する設計（forceLinkのdistanceは不変、strengthは純粋なデータ受け渡しのみ）を確認。`page.tsx`側のスタイルマップ（1=細く薄い、2=既存の見た目を維持、3=太く濃い）、座標への非影響を確認する新規テスト2件の追加方針を承認。
+- レビュー: diff（3ファイル、97行追加/14行削除）を読み、`forceLink(...).distance(LINK_DISTANCE)`が変更されていないこと、strengthがレイアウト計算に一切使われず出力への単純な伝播のみであることをコードで確認。`npx tsc --noEmit`・`npx vitest run`（17ファイル146テスト、`graphLayout.test.ts`は既存5件+新規2件で7件）を独立に再実行しすべて成功。
+- 追加境界チェック: 新規テストの内容自体を確認し、「strengthを変えても同一トポロジーなら座標が完全一致する」という検証が実際にd3-forceの`SimulationLinkDatum`型に独自フィールドを追加する実装（forceLinkが`source`/`target`しか参照しないことを利用）と整合していることを確認。
+- 副作用チェック: devサーバー未起動、プロセス残留無し。
+- 気になった点: 特になし。
