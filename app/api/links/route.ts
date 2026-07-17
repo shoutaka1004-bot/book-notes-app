@@ -27,6 +27,10 @@ const createLinkSchema = z
     from_book_id: z.string().uuid("from_book_idの形式が不正です"),
     to_book_id: z.string().uuid("to_book_idの形式が不正です"),
     note: z.string().nullable().optional(),
+    // 関連度（1〜3）。省略時は`createLink`側でDBのデフォルト値(2)に委ねる。
+    // z.coerce.number()は使わない — 文字列値("2"等)も型強制で通ってしまい、
+    // 「文字列は400で拒否する」という仕様と矛盾するため。
+    strength: z.number().int().min(1).max(3).optional(),
   })
   .refine((data) => data.from_book_id !== data.to_book_id, {
     message: "自分自身へのリンクは作成できません",
@@ -142,7 +146,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const created = await createLink(from_book_id, to_book_id, note);
+    const created = await createLink(from_book_id, to_book_id, note, parsed.data.strength);
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";

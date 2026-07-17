@@ -182,6 +182,70 @@ describe("POST /api/links", () => {
     const body = await res.json();
     expect(body.error).toBe("リクエストボディがJSONとして解析できません");
   });
+
+  it("defaults strength to 2 (DB default) when omitted", async () => {
+    const bookA = await makeBook("strength省略確認用A");
+    const bookB = await makeBook("strength省略確認用B");
+
+    const res = await POST(
+      postRequest({ from_book_id: bookA.id, to_book_id: bookB.id })
+    );
+    expect(res.status).toBe(201);
+    const created = await res.json();
+    expect(created.strength).toBe(2);
+
+    await DELETE(deleteRequest({ id: created.id }));
+  });
+
+  it.each([1, 3])("accepts strength=%d within the valid range", async (strength) => {
+    const bookA = await makeBook(`strength=${strength}確認用A`);
+    const bookB = await makeBook(`strength=${strength}確認用B`);
+
+    const res = await POST(
+      postRequest({ from_book_id: bookA.id, to_book_id: bookB.id, strength })
+    );
+    expect(res.status).toBe(201);
+    const created = await res.json();
+    expect(created.strength).toBe(strength);
+
+    await DELETE(deleteRequest({ id: created.id }));
+  });
+
+  it.each([0, 4])("returns 400 when strength=%d is out of range", async (strength) => {
+    const bookA = await makeBook(`strength範囲外(${strength})確認用A`);
+    const bookB = await makeBook(`strength範囲外(${strength})確認用B`);
+
+    const res = await POST(
+      postRequest({ from_book_id: bookA.id, to_book_id: bookB.id, strength })
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBeTruthy();
+  });
+
+  it("returns 400 when strength is a decimal number", async () => {
+    const bookA = await makeBook("strength小数確認用A");
+    const bookB = await makeBook("strength小数確認用B");
+
+    const res = await POST(
+      postRequest({ from_book_id: bookA.id, to_book_id: bookB.id, strength: 1.5 })
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBeTruthy();
+  });
+
+  it("returns 400 when strength is a string", async () => {
+    const bookA = await makeBook("strength文字列確認用A");
+    const bookB = await makeBook("strength文字列確認用B");
+
+    const res = await POST(
+      postRequest({ from_book_id: bookA.id, to_book_id: bookB.id, strength: "2" })
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBeTruthy();
+  });
 });
 
 describe("GET /api/links", () => {
