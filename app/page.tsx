@@ -20,9 +20,9 @@ function formatRating(rating: number | null): string {
   return "★".repeat(rating) + "☆".repeat(5 - rating);
 }
 
-/** `finished_date`（YYYY-MM-DD、または未記入でnull）の表示用文字列。 */
+/** `finished_date`（YYYY-MM-DD、または未記入でnull）の表示用文字列。値の有無に関わらず「完読日: 」ラベルを一貫して付ける。 */
 function formatFinishedDate(finishedDate: string | null): string {
-  return finishedDate ?? "完読日: 未記入";
+  return `完読日: ${finishedDate ?? "未記入"}`;
 }
 
 /**
