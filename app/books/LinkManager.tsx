@@ -21,6 +21,16 @@ const selectClassName =
 const inputClassName =
   "h-12 min-h-11 w-full rounded-lg border border-zinc-300 px-4 text-base text-zinc-900 outline-none focus:border-zinc-500 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50";
 
+/** 関連度選択ラジオボタンの各`<label>`。44×44px相当の実効タップ領域を確保する（BRIEF第4-7節）。 */
+const strengthLabelClassName =
+  "flex h-11 min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-zinc-300 px-3 text-sm text-zinc-700 transition-colors has-[:checked]:border-zinc-500 has-[:checked]:bg-zinc-100 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60 dark:border-zinc-700 dark:text-zinc-300 dark:has-[:checked]:border-zinc-400 dark:has-[:checked]:bg-zinc-800";
+
+const STRENGTH_OPTIONS: { value: 1 | 2 | 3; label: string }[] = [
+  { value: 1, label: "弱い" },
+  { value: 2, label: "普通" },
+  { value: 3, label: "強い" },
+];
+
 /**
  * レスポンス（`{ error: string }`形式を想定）から日本語エラーメッセージを取り出す。
  * 取り出せない場合はフォールバックの汎用文言を返す。
@@ -68,6 +78,7 @@ export function LinkManager({ bookId }: { bookId: string }) {
 
   const [selectedBookId, setSelectedBookId] = useState("");
   const [note, setNote] = useState("");
+  const [strength, setStrength] = useState<1 | 2 | 3>(2);
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
@@ -149,6 +160,7 @@ export function LinkManager({ bookId }: { bookId: string }) {
         body: JSON.stringify({
           from_book_id: bookId,
           to_book_id: targetBookId,
+          strength,
           ...(trimmedNote ? { note: trimmedNote } : {}),
         }),
       });
@@ -159,7 +171,8 @@ export function LinkManager({ bookId }: { bookId: string }) {
       }
 
       if (response.status === 201) {
-        const created: { id: string; note: string | null } = await response.json();
+        const created: { id: string; note: string | null; strength: number } =
+          await response.json();
         const addedBook = allBooks?.find((b) => b.id === targetBookId);
         if (addedBook) {
           setLinks((current) => [
@@ -167,15 +180,14 @@ export function LinkManager({ bookId }: { bookId: string }) {
             {
               linkId: created.id,
               note: created.note,
-              // strength選択UIは未実装のため、この楽観的更新ではDB側のデフォルト値(2)を仮置きする。
-              // strength選択UIが実装されるタスクで、ここもAPIレスポンスの値を使うよう更新する。
-              strength: 2,
+              strength: created.strength,
               direction: "outgoing",
               book: addedBook,
             },
           ]);
         }
         setNote("");
+        setStrength(2);
         return;
       }
 
@@ -309,6 +321,28 @@ export function LinkManager({ bookId }: { bookId: string }) {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  関連度
+                </span>
+                <div className="flex gap-2" role="radiogroup" aria-label="関連度">
+                  {STRENGTH_OPTIONS.map((option) => (
+                    <label key={option.value} className={strengthLabelClassName}>
+                      <input
+                        type="radio"
+                        name="link-strength"
+                        value={option.value}
+                        checked={strength === option.value}
+                        onChange={() => setStrength(option.value)}
+                        disabled={isAdding}
+                        className="sr-only"
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div className="flex flex-col gap-2">
