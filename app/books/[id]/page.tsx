@@ -154,11 +154,24 @@ export default function BookDetailPage() {
     setSaveError(null);
     setIsSaving(true);
 
+    // `bookFormSchema`は空欄の任意項目を`undefined`に変換するが、`JSON.stringify`は
+    // 値が`undefined`のキーをボディから丸ごと除外してしまう。`PUT`は部分更新（送った
+    // キーだけを更新する）ため、キーごと消えると「そのカラムには一切触れない」＝
+    // 既存の値が残ってしまう（ユーザーが空欄にして保存した意図に反する）。
+    // ユーザーが項目を空にした場合は「そのカラムをnullにする」という意味になるよう、
+    // 送信直前に`undefined`を明示的に`null`へ変換してからJSON化する。
+    const payload = Object.fromEntries(
+      Object.entries(parsed.data).map(([key, value]) => [
+        key,
+        value === undefined ? null : value,
+      ])
+    );
+
     try {
       const response = await fetch(`/api/books/${bookId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed.data),
+        body: JSON.stringify(payload),
       });
 
       if (response.status === 200) {
