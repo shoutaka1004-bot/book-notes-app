@@ -8,7 +8,9 @@ import { AUTH_COOKIE_NAME, verifySessionToken } from "./lib/auth";
 const PUBLIC_PATHS = new Set(["/login", "/api/login"]);
 
 /**
- * 未ログイン状態でアクセスされたリクエストをガードするmiddleware。
+ * 未ログイン状態でアクセスされたリクエストをガードするproxy（旧middleware。
+ * Next.js 16でファイル規約が`middleware`から`proxy`に改称され、既定の実行環境も
+ * Node.js runtimeになった。これにより`lib/auth.ts`が使う`node:crypto`が利用できる）。
  *
  * - `/login` と `/api/login` は認証チェック対象外（常に通過）
  * - それ以外の `/api/` 配下のパスは、未認証の場合 `/login` へのリダイレクトではなく
@@ -17,7 +19,7 @@ const PUBLIC_PATHS = new Set(["/login", "/api/login"]);
  *   ログイン画面のHTMLを受け取って壊れるため
  * - それ以外の通常の画面ルートは、未認証の場合 `/login` へリダイレクトする
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (PUBLIC_PATHS.has(pathname)) {

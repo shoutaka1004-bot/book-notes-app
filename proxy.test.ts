@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
-import { middleware } from "./middleware";
+import { proxy } from "./proxy";
 import { AUTH_COOKIE_NAME, createSessionToken } from "./lib/auth";
 
 const originalAppPassword = process.env.APP_PASSWORD;
@@ -35,16 +35,16 @@ function isPassThrough(response: Response): boolean {
   return response.headers.get("x-middleware-next") === "1";
 }
 
-describe("middleware — 通常の画面ルート", () => {
+describe("proxy — 通常の画面ルート", () => {
   it("Cookie無しでアクセスすると /login へリダイレクトする", () => {
-    const response = middleware(requestFor("/"));
+    const response = proxy(requestFor("/"));
 
     expect(response.status).toBe(307);
     expect(new URL(response.headers.get("location") ?? "").pathname).toBe("/login");
   });
 
   it("不正/期限切れのCookieでアクセスすると /login へリダイレクトする", () => {
-    const response = middleware(requestFor("/", "not-a-valid-token"));
+    const response = proxy(requestFor("/", "not-a-valid-token"));
 
     expect(response.status).toBe(307);
     expect(new URL(response.headers.get("location") ?? "").pathname).toBe("/login");
@@ -52,27 +52,27 @@ describe("middleware — 通常の画面ルート", () => {
 
   it("正当なセッションCookieがあれば通過する", () => {
     const token = createSessionToken();
-    const response = middleware(requestFor("/", token));
+    const response = proxy(requestFor("/", token));
 
     expect(isPassThrough(response)).toBe(true);
   });
 
   it("/login 自体はCookie無しでも通過する", () => {
-    const response = middleware(requestFor("/login"));
+    const response = proxy(requestFor("/login"));
 
     expect(isPassThrough(response)).toBe(true);
   });
 });
 
-describe("middleware — /api/ 配下のルート", () => {
+describe("proxy — /api/ 配下のルート", () => {
   it("/api/login はCookie無しでも通過する", () => {
-    const response = middleware(requestFor("/api/login"));
+    const response = proxy(requestFor("/api/login"));
 
     expect(isPassThrough(response)).toBe(true);
   });
 
   it("Cookie無しで /api/books にアクセスすると401のJSONエラーを返す（リダイレクトしない）", async () => {
-    const response = middleware(requestFor("/api/books"));
+    const response = proxy(requestFor("/api/books"));
 
     expect(response.status).toBe(401);
     expect(response.headers.get("location")).toBeNull();
@@ -81,7 +81,7 @@ describe("middleware — /api/ 配下のルート", () => {
 
   it("正当なセッションCookieがあれば /api/books も通過する", () => {
     const token = createSessionToken();
-    const response = middleware(requestFor("/api/books", token));
+    const response = proxy(requestFor("/api/books", token));
 
     expect(isPassThrough(response)).toBe(true);
   });
